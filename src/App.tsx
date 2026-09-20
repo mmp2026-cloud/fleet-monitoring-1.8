@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Category, EquipmentStatus, navItems } from './data'
+import { Category, Equipment, EquipmentStatus, navItems } from './data'
 import { loadEquipment, saveEquipment } from './storage'
 
 const icons: Record<string, string> = { Overview: '▦', Equipment: '▣', 'Verification queue': '✓', Calendar: '◷', 'Service history': '↺' }
@@ -35,16 +35,16 @@ function App() {
       <header className="topbar"><div className="mobile-brand">ForgeFleet</div><div className="breadcrumbs">Operations <span>/</span> {active}</div><div className="top-actions"><button className="icon-btn" aria-label="Notifications">♧<b>3</b></button><div className="avatar">TS</div></div></header>
       <div className="content">
         <section className="page-heading"><div><p className="eyebrow">SUNDAY, 20 SEPTEMBER 2026 · 08:42</p><h1>{active === 'Overview' ? 'Good morning, Tessa' : active}</h1><p className="subhead">{active === 'Overview' ? 'Here’s the fleet pulse for your current shift.' : 'Keep every unit moving, safe and accountable.'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => setShowScan(true)}>⌾ Scan QR</button><button className="primary" onClick={() => setShowRegister(true)}>＋ Register equipment</button></div></section>
-        {active === 'Overview' && <Overview equipment={equipment} counts={counts} onSelect={(id) => { setSelected(id); setActive('Equipment') }} onAction={() => setShowScan(true)} />}
+        {active === 'Overview' && <Overview equipment={equipment} counts={counts} onSelect={(id: string) => { setSelected(id); setActive('Equipment') }} onAction={() => setShowScan(true)} />}
         {active === 'Equipment' && <EquipmentView equipment={filtered} current={current} selected={selected} setSelected={setSelected} query={query} setQuery={setQuery} category={category} setCategory={setCategory} onRegister={() => setShowRegister(true)} notify={notify} onBreakdown={() => setShowBreakdown(true)} />}
         {active === 'Verification queue' && <Queue equipment={equipment} onApprove={(id) => { update(equipment.map(e => e.id === id ? { ...e, status: 'Healthy' } : e)); notify('Reading verified and maintenance forecast updated') }} />}
         {active === 'Calendar' && <Calendar equipment={equipment} />}
         {active === 'Service history' && <History equipment={equipment} />}
       </div>
     </main>
-    {showRegister && <Register onClose={() => setShowRegister(false)} onSave={(item) => { update([item, ...equipment]); setShowRegister(false); notify('Equipment registered successfully') }} />}
-    {showScan && <Scan equipment={equipment} onClose={() => setShowScan(false)} onSave={(id, smr, note) => { update(equipment.map(e => e.id === id ? { ...e, smr, status: 'Healthy' } : e)); setShowScan(false); notify(`Reading saved for ${id}${note ? ' · evidence attached' : ''}`) }} />}
-    {showBreakdown && <Breakdown equipment={equipment} initialId={selected} onClose={() => setShowBreakdown(false)} onSave={(id, severity) => { update(equipment.map(e => e.id === id ? { ...e, status: 'Mechanical Plan' } : e)); setShowBreakdown(false); notify(`Breakdown reported for ${id} · ${severity} priority`) }} />}
+    {showRegister && <Register onClose={() => setShowRegister(false)} onSave={(item: Equipment) => { update([item, ...equipment]); setShowRegister(false); notify('Equipment registered successfully') }} />}
+    {showScan && <Scan equipment={equipment} onClose={() => setShowScan(false)} onSave={(id: string, smr: number, note: string) => { update(equipment.map(e => e.id === id ? { ...e, smr, status: 'Healthy' } : e)); setShowScan(false); notify(`Reading saved for ${id}${note ? ' · evidence attached' : ''}`) }} />}
+    {showBreakdown && <Breakdown equipment={equipment} initialId={selected} onClose={() => setShowBreakdown(false)} onSave={(id: string, severity: string) => { update(equipment.map(e => e.id === id ? { ...e, status: 'Mechanical Plan' } : e)); setShowBreakdown(false); notify(`Breakdown reported for ${id} · ${severity} priority`) }} />}
     {toast && <div className="toast">✓ {toast}</div>}
   </div>
 }

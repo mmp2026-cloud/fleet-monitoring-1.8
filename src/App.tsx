@@ -37,7 +37,7 @@ function App() {
         <section className="page-heading"><div><p className="eyebrow">SUNDAY, 20 SEPTEMBER 2026 · 08:42</p><h1>{active === 'Overview' ? 'Good morning, Tessa' : active}</h1><p className="subhead">{active === 'Overview' ? 'Here’s the fleet pulse for your current shift.' : 'Keep every unit moving, safe and accountable.'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => setShowScan(true)}>⌾ Scan QR</button><button className="primary" onClick={() => setShowRegister(true)}>＋ Register equipment</button></div></section>
         {active === 'Overview' && <Overview equipment={equipment} counts={counts} onSelect={(id: string) => { setSelected(id); setActive('Equipment') }} onAction={() => setShowScan(true)} />}
         {active === 'Equipment' && <EquipmentView equipment={filtered} current={current} selected={selected} setSelected={setSelected} query={query} setQuery={setQuery} category={category} setCategory={setCategory} onRegister={() => setShowRegister(true)} notify={notify} onBreakdown={() => setShowBreakdown(true)} />}
-        {active === 'Verification queue' && <Queue equipment={equipment} onApprove={(id) => { update(equipment.map(e => e.id === id ? { ...e, status: 'Healthy' } : e)); notify('Reading verified and maintenance forecast updated') }} />}
+        {active === 'Verification queue' && <Queue equipment={equipment} onApprove={(id: string) => { update(equipment.map(e => e.id === id ? { ...e, status: 'Healthy' } : e)); notify('Reading verified and maintenance forecast updated') }} />}
         {active === 'Calendar' && <Calendar equipment={equipment} />}
         {active === 'Service history' && <History equipment={equipment} />}
       </div>

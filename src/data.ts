@@ -19,6 +19,12 @@ export type Equipment = {
   nextDue: number
   utilization: number
   color: string
+  maintenanceAlerts?: MaintenanceAlert[]
+}
+
+export type MaintenanceAlert = {
+  type: 'Mechanical plan' | 'Tire replacement'
+  notes?: string
 }
 
 export type OperatorSubmission = {

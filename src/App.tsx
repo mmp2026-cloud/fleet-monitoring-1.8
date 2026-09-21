@@ -13,6 +13,15 @@ const getOperatorKey = () => {
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''))
   return (hashParams.get('equipment') || hashParams.get('code') || hashParams.get('id'))?.trim()
 }
+const getOperatorSnapshot = (): Equipment | undefined => {
+  const encoded = new URLSearchParams(window.location.search).get('equipmentData')
+  if (!encoded) return undefined
+  try {
+    return JSON.parse(encoded) as Equipment
+  } catch {
+    return undefined
+  }
+}
 function StatusPill({ status }: { status: EquipmentStatus }) { return <span className={`pill ${statusLabel(status).toLowerCase().replaceAll(' ', '-')}`}>{statusLabel(status)}</span> }
 
 export default function App() {
@@ -21,8 +30,9 @@ export default function App() {
   const [calls, setCalls] = useState(loadMaintenanceCalls)
   const [categories, setCategories] = useState(loadCategories)
   const operatorId = getOperatorKey()
+  const operatorSnapshot = getOperatorSnapshot()
   const normalizedOperatorId = operatorId?.toUpperCase()
-  const operatorUnit = equipment.find(e => e.id.toUpperCase() === normalizedOperatorId || e.code.toUpperCase() === normalizedOperatorId)
+  const operatorUnit = equipment.find(e => e.id.toUpperCase() === normalizedOperatorId || e.code.toUpperCase() === normalizedOperatorId) ?? (operatorSnapshot && normalizedOperatorId && (operatorSnapshot.id?.toUpperCase() === normalizedOperatorId || operatorSnapshot.code?.toUpperCase() === normalizedOperatorId) ? operatorSnapshot : undefined)
   if (operatorId) return operatorUnit ? <OperatorView unit={operatorUnit} onSubmit={(submission) => { const next = [...submissions, submission]; setSubmissions(next); saveSubmissions(next) }} /> : <main className="operator-page"><div className="operator-card"><h1>Equipment not found</h1><p>This QR code does not match a registered unit.</p><a className="primary" href={window.location.pathname}>Open dashboard</a></div></main>
   return <AdminApp equipment={equipment} setEquipment={setEquipment} submissions={submissions} setSubmissions={setSubmissions} calls={calls} setCalls={setCalls} categories={categories} setCategories={setCategories} />
 }
@@ -81,14 +91,19 @@ function EquipmentView({ equipment, current, onSelect, onRegister, onDelete, onC
     if (sort === 'status') return statusLabel(a.status).localeCompare(statusLabel(b.status))
     return String(a[sort as 'name' | 'code' | 'category']).localeCompare(String(b[sort as 'name' | 'code' | 'category']))
   }), [equipment, query, sort])
-  return <div className="equipment-layout"><section className="panel table-panel"><div className="toolbar"><div className="search"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search equipment, code or location" /></div><label className="sort-control">Sort by<select aria-label="Sort equipment" value={sort} onChange={e => setSort(e.target.value)}><option value="name">Name</option><option value="code">Fleet code</option><option value="category">Category</option><option value="status">Status</option><option value="current">Current reading</option><option value="nextDue">Next service</option></select></label><button className="secondary" onClick={onRegister}>＋ Add</button></div><EquipmentTable equipment={filtered} onSelect={onSelect} /></section><section className="panel detail-panel">{current ? <><div className="detail-top"><div className="unit-illustration" style={{ background: current.color }}>{current.code.slice(0, 3)}</div><div><p className="eyebrow">{current.code}</p><h2>{current.name}</h2><p>{current.location} · {current.operator}</p></div></div><StatusPill status={current.status} /><div className="detail-stats"><div><span>Current reading</span><b>{fmt(current.currentReading ?? current.smr)}</b><small>SMR / odometer</small></div><div><span>PM interval</span><b>{fmt(current.pmInterval)}</b><small>SMR / km</small></div><div><span>Next service</span><b>{fmt(current.nextDue)}</b><small>based on last PMS</small></div></div><QRCodeCard value={current.code} notify={notify} /><div className="detail-actions"><button className="breakdown-button wide" onClick={onCall}>＋ Create maintenance call</button><button className="secondary wide" onClick={() => notify('Operator QR is ready to print and attach to the unit')}>Print QR label</button><button className="delete-button wide" onClick={onDelete}>Delete incorrect unit</button></div></> : <div className="empty-state"><h2>No equipment selected</h2><p>Register a unit to start tracking the fleet.</p></div>}</section></div>
+  return <div className="equipment-layout"><section className="panel table-panel"><div className="toolbar"><div className="search"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search equipment, code or location" /></div><label className="sort-control">Sort by<select aria-label="Sort equipment" value={sort} onChange={e => setSort(e.target.value)}><option value="name">Name</option><option value="code">Fleet code</option><option value="category">Category</option><option value="status">Status</option><option value="current">Current reading</option><option value="nextDue">Next service</option></select></label><button className="secondary" onClick={onRegister}>＋ Add</button></div><EquipmentTable equipment={filtered} onSelect={onSelect} /></section><section className="panel detail-panel">{current ? <><div className="detail-top"><div className="unit-illustration" style={{ background: current.color }}>{current.code.slice(0, 3)}</div><div><p className="eyebrow">{current.code}</p><h2>{current.name}</h2><p>{current.location} · {current.operator}</p></div></div><StatusPill status={current.status} /><div className="detail-stats"><div><span>Current reading</span><b>{fmt(current.currentReading ?? current.smr)}</b><small>SMR / odometer</small></div><div><span>PM interval</span><b>{fmt(current.pmInterval)}</b><small>SMR / km</small></div><div><span>Next service</span><b>{fmt(current.nextDue)}</b><small>based on last PMS</small></div></div><QRCodeCard unit={current} notify={notify} /><div className="detail-actions"><button className="breakdown-button wide" onClick={onCall}>＋ Create maintenance call</button><button className="secondary wide" onClick={() => notify('Operator QR is ready to print and attach to the unit')}>Print QR label</button><button className="delete-button wide" onClick={onDelete}>Delete incorrect unit</button></div></> : <div className="empty-state"><h2>No equipment selected</h2><p>Register a unit to start tracking the fleet.</p></div>}</section></div>
 }
 
-function operatorUrl(value: string) { const url = appBaseUrl(); url.searchParams.set('equipment', value); return url.toString() }
+function operatorUrl(unit: Equipment) {
+  const url = appBaseUrl()
+  url.searchParams.set('equipment', unit.code)
+  url.searchParams.set('equipmentData', JSON.stringify(unit))
+  return url.toString()
+}
 
-function QRCodeCard({ value, notify }: { value: string; notify: (message: string) => void }) {
+function QRCodeCard({ unit, notify }: { unit: Equipment; notify: (message: string) => void }) {
   const [src, setSrc] = useState('')
-  const url = operatorUrl(value)
+  const url = operatorUrl(unit)
   useEffect(() => {
     QRCode.toDataURL(url, { width: 280, margin: 4, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } }).then(setSrc).catch(() => setSrc(''))
   }, [url])
@@ -100,7 +115,7 @@ function QRCodeCard({ value, notify }: { value: string; notify: (message: string
       notify('Copy is unavailable; select the URL to copy it')
     }
   }
-  return <div className="qr-box"><div className="qr-code-wrap">{src ? <img className="qr-image" src={src} alt={`QR code for ${value}`} /> : <div className="qr-loading">Generating QR…</div>}</div><div className="qr-details"><b>Unique operator QR</b><p>Scan to open {value}'s submission page.</p><code className="operator-url">{url}</code><button className="text-btn copy-url" onClick={copyUrl}>Copy operator URL</button></div></div>
+  return <div className="qr-box"><div className="qr-code-wrap">{src ? <img className="qr-image" src={src} alt={`QR code for ${unit.code}`} /> : <div className="qr-loading">Generating QR…</div>}</div><div className="qr-details"><b>Unique operator QR</b><p>Scan to open {unit.code}'s submission page on any device.</p><code className="operator-url">{url}</code><button className="text-btn copy-url" onClick={copyUrl}>Copy operator URL</button></div></div>
 }
 
 function Queue({ submissions, equipment, onApprove }: { submissions: OperatorSubmission[]; equipment: Equipment[]; onApprove: (s: OperatorSubmission) => void }) { const pending = submissions.filter(s => s.status === 'Pending'); return <section className="panel queue-panel"><div className="panel-head"><div><h2>Verification queue <span className="count-badge">{pending.length}</span></h2><p>Review operator readings and evidence before updating the fleet.</p></div></div>{pending.length ? pending.map(s => { const e = equipment.find(u => u.id === s.equipmentId); return <div className="queue-row" key={s.id}><div className="avatar operator-avatar">OP</div><div className="row-main"><b>{e?.name} · {e?.code}</b><small>{new Date(s.submittedAt).toLocaleString()} {s.repairNeeded ? '· Repair needed' : ''}</small>{s.notes && <small>{s.notes}</small>}</div><div className="reading"><b>{fmt(s.reading)}</b><small>SMR submitted</small></div>{s.photo ? <a className="evidence" href={s.photo} target="_blank" rel="noreferrer">View photo</a> : <span className="evidence">No photo</span>}<button className="approve" onClick={() => onApprove(s)}>Approve</button></div> }) : <div className="empty-state"><h2>Queue is clear</h2><p>New operator submissions will appear here.</p></div>}</section> }
